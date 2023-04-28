@@ -35,3 +35,13 @@ class Profile(models.Model):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
+
+
+class Follow(models.Model):
+    follower = models.ForeignKey(
+        Profile, related_name="following", on_delete=models.CASCADE
+    )
+    following = models.ForeignKey(
+        Profile, related_name="followers", on_delete=models.CASCADE
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
