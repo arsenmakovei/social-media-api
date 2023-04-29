@@ -1,12 +1,12 @@
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, OpenApiParameter
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from social_media.models import Profile, Follow, Post, Like
+from social_media.models import Profile, Follow, Post, Like, Comment
 from social_media.serializers import (
     ProfileSerializer,
     FollowingListSerializer,
@@ -16,6 +16,7 @@ from social_media.serializers import (
     LikeRequestSerializer,
     LikeListSerializer,
     PostListSerializer,
+    CommentSerializer,
 )
 
 
@@ -215,3 +216,61 @@ class PostViewSet(viewsets.ModelViewSet):
         like.delete()
 
         return Response({"detail": f"You have unliked {post.name}."})
+
+    @action(detail=True, methods=["GET"])
+    def comments(self, request, pk=None):
+        post = self.get_object()
+        comments = post.comments.all()
+        serializer = CommentSerializer(comments, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["POST"], serializer_class=CommentSerializer)
+    def add_comment(self, request, pk=None):
+        post = self.get_object()
+        serializer = CommentSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save(profile=request.user.profile, post=post)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(
+                serializer.errors, status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(
+        detail=True,
+        methods=["PUT"],
+        url_path="update_comment/(?P<comment_pk>[^/.]+)",
+        serializer_class=CommentSerializer,
+    )
+    def update_comment(self, request, pk=None, comment_pk=None):
+        comment = Comment.objects.get(pk=comment_pk)
+        serializer = CommentSerializer(
+            comment, data=request.data, partial=True
+        )
+
+        if comment.profile != self.request.user.profile:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        else:
+            return Response(
+                serializer.errors, status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(
+        detail=True,
+        methods=["DELETE"],
+        url_path="delete_comment/(?P<comment_pk>[^/.]+)",
+        serializer_class=CommentSerializer,
+    )
+    def delete_comment(self, request, pk=None, comment_pk=None):
+        comment = Comment.objects.get(pk=comment_pk)
+
+        if comment.profile != self.request.user.profile:
+            return Response(status=status.HTTP_403_FORBIDDEN)
+
+        comment.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
