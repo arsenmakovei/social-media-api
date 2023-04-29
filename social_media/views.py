@@ -26,6 +26,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
+        """Returns a list of all user profiles that match the specified username parameter, if provided"""
         queryset = self.queryset
         username = self.request.query_params.get("username")
 
@@ -35,12 +36,15 @@ class ProfileViewSet(viewsets.ModelViewSet):
         return queryset.distinct()
 
     def perform_create(self, serializer):
+        """Creates a new user profile and associates it with the authenticated user"""
         serializer.save(user=self.request.user)
 
     def perform_update(self, serializer):
+        """Updates an existing user profile for the authenticated user"""
         serializer.save(user=self.request.user)
 
     def perform_destroy(self, instance):
+        """Deletes the specified user profile if the authenticated user is the owner"""
         if instance.user == self.request.user:
             instance.delete()
         else:
@@ -58,12 +62,14 @@ class ProfileViewSet(viewsets.ModelViewSet):
         ]
     )
     def list(self, request, *args, **kwargs):
+        """Returns a list of all user profiles that match the 'username' parameter if it is specified"""
         return super().list(request, *args, **kwargs)
 
     @action(
         detail=True, methods=["POST"], serializer_class=FollowRequestSerializer
     )
     def follow(self, request, pk=None):
+        """Creates a request to subscribe to the user profile with the specified pk"""
         follower = self.request.user.profile
         following = self.get_object()
 
@@ -85,6 +91,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
         detail=True, methods=["POST"], serializer_class=FollowRequestSerializer
     )
     def unfollow(self, request, pk=None):
+        """Cancels the subscription request to the user profile with the specified pk"""
         follower = self.request.user.profile
         following = self.get_object()
 
@@ -106,12 +113,14 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["GET"])
     def followers(self, request, pk=None):
+        """Returns a list of all users who have subscribed to the user profile with the specified pk"""
         profile = self.get_object()
         serializer = FollowerListSerializer(profile.followers.all(), many=True)
         return Response(serializer.data)
 
     @action(detail=True, methods=["GET"])
     def following(self, request, pk=None):
+        """Returns a list of all user profiles that the user with the specified pk is subscribed to"""
         profile = self.get_object()
         serializer = FollowingListSerializer(
             profile.following.all(), many=True
@@ -120,6 +129,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["GET"])
     def posts(self, request, pk=None):
+        """Returns a list of all posts created by the user with the specified pk"""
         profile = self.get_object()
         posts = Post.objects.filter(author=profile)
         serializer = PostSerializer(posts, many=True)
@@ -127,6 +137,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["GET"])
     def following_posts(self, request, pk=None):
+        """Returns a list of all posts created by users that the user with the specified pk is subscribed to"""
         profile = self.get_object()
         followings = profile.followers.all()
         posts = Post.objects.filter(author__following__in=followings)
@@ -135,6 +146,7 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["GET"])
     def liked_posts(self, request, pk=None):
+        """Returns a list of all posts that were liked by the user with the specified pk"""
         profile = self.get_object()
         likes = profile.likes.all()
         serializer = LikeListSerializer(likes, many=True)
@@ -147,6 +159,7 @@ class PostViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthenticated,)
 
     def get_queryset(self):
+        """Returns a queryset of Post objects, filtered by name if provided"""
         queryset = self.queryset
         name = self.request.query_params.get("name")
 
@@ -156,9 +169,11 @@ class PostViewSet(viewsets.ModelViewSet):
         return queryset.distinct()
 
     def perform_create(self, serializer):
+        """Saves the post author as the current user's profile on create"""
         serializer.save(author=self.request.user.profile)
 
     def perform_update(self, serializer):
+        """Update a specific post, if the requesting user is the author"""
         post = self.get_object()
         if post.author == self.request.user.profile:
             serializer.save(author=self.request.user.profile)
@@ -168,6 +183,7 @@ class PostViewSet(viewsets.ModelViewSet):
             )
 
     def perform_destroy(self, instance):
+        """Deletes the post if the current user is the author"""
         if instance.author == self.request.user.profile:
             instance.delete()
         else:
@@ -185,12 +201,14 @@ class PostViewSet(viewsets.ModelViewSet):
         ]
     )
     def list(self, request, *args, **kwargs):
+        """Returns a list of posts that match the 'name' parameter if it is specified"""
         return super().list(request, *args, **kwargs)
 
     @action(
         detail=True, methods=["POST"], serializer_class=LikeRequestSerializer
     )
     def like(self, request, pk=None):
+        """Allows users to like a post"""
         profile = self.request.user.profile
         post = self.get_object()
 
@@ -205,6 +223,7 @@ class PostViewSet(viewsets.ModelViewSet):
         detail=True, methods=["POST"], serializer_class=LikeRequestSerializer
     )
     def unlike(self, request, pk=None):
+        """Allows users to unlike a post"""
         profile = self.request.user.profile
         post = self.get_object()
 
@@ -219,6 +238,7 @@ class PostViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["GET"])
     def comments(self, request, pk=None):
+        """Returns all comments for a post"""
         post = self.get_object()
         comments = post.comments.all()
         serializer = CommentSerializer(comments, many=True)
@@ -226,6 +246,7 @@ class PostViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["POST"], serializer_class=CommentSerializer)
     def add_comment(self, request, pk=None):
+        """Adds a comment to a post"""
         post = self.get_object()
         serializer = CommentSerializer(data=request.data)
         if serializer.is_valid():
@@ -243,6 +264,7 @@ class PostViewSet(viewsets.ModelViewSet):
         serializer_class=CommentSerializer,
     )
     def update_comment(self, request, pk=None, comment_pk=None):
+        """Updates a comment on a post"""
         comment = Comment.objects.get(pk=comment_pk)
         serializer = CommentSerializer(
             comment, data=request.data, partial=True
@@ -266,6 +288,7 @@ class PostViewSet(viewsets.ModelViewSet):
         serializer_class=CommentSerializer,
     )
     def delete_comment(self, request, pk=None, comment_pk=None):
+        """Deletes a comment from a post"""
         comment = Comment.objects.get(pk=comment_pk)
 
         if comment.profile != self.request.user.profile:
