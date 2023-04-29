@@ -10,7 +10,7 @@ Python 3 must be installed
 
 ```shell
 git clone https://github.com/arsenmakovei/social-media-api.git
-cd restaurant_kitchen_service
+cd social_media_api
 python3 -m venv venv
 source venv/bin/activate (on macOS)
 venv\Scripts\activate (on Windows)
