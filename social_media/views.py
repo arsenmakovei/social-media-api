@@ -6,13 +6,16 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from social_media.models import Profile, Follow, Post
+from social_media.models import Profile, Follow, Post, Like
 from social_media.serializers import (
     ProfileSerializer,
     FollowingListSerializer,
     FollowerListSerializer,
     PostSerializer,
     FollowRequestSerializer,
+    LikeRequestSerializer,
+    LikeListSerializer,
+    PostListSerializer,
 )
 
 
@@ -126,7 +129,14 @@ class ProfileViewSet(viewsets.ModelViewSet):
         profile = self.get_object()
         followings = profile.followers.all()
         posts = Post.objects.filter(author__following__in=followings)
-        serializer = PostSerializer(posts, many=True)
+        serializer = PostListSerializer(posts, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["GET"])
+    def liked_posts(self, request, pk=None):
+        profile = self.get_object()
+        likes = profile.likes.all()
+        serializer = LikeListSerializer(likes, many=True)
         return Response(serializer.data)
 
 
@@ -175,3 +185,33 @@ class PostViewSet(viewsets.ModelViewSet):
     )
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
+
+    @action(
+        detail=True, methods=["POST"], serializer_class=LikeRequestSerializer
+    )
+    def like(self, request, pk=None):
+        profile = self.request.user.profile
+        post = self.get_object()
+
+        like, created = Like.objects.get_or_create(profile=profile, post=post)
+
+        if not created:
+            return Response({"detail": "You have already liked this post."})
+
+        return Response({"detail": f"You are liked {post.name} now."})
+
+    @action(
+        detail=True, methods=["POST"], serializer_class=LikeRequestSerializer
+    )
+    def unlike(self, request, pk=None):
+        profile = self.request.user.profile
+        post = self.get_object()
+
+        like = Like.objects.filter(profile=profile, post=post).first()
+
+        if not like:
+            return Response({"detail": "You have not liked this post."})
+
+        like.delete()
+
+        return Response({"detail": f"You have unliked {post.name}."})

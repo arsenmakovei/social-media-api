@@ -61,3 +61,13 @@ class Post(models.Model):
     content = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     image = models.ImageField(blank=True, upload_to=post_image_file_path)
+
+
+class Like(models.Model):
+    profile = models.ForeignKey(
+        Profile, on_delete=models.CASCADE, related_name="likes"
+    )
+    post = models.ForeignKey(
+        Post, on_delete=models.CASCADE, related_name="likes"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
