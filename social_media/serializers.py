@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from social_media.models import Profile, Follow
+from social_media.models import Profile, Follow, Post
 
 
 class ProfileSerializer(serializers.ModelSerializer):
@@ -26,6 +26,12 @@ class ProfileSerializer(serializers.ModelSerializer):
         )
 
 
+class FollowRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Follow
+        fields = ("id",)
+
+
 class FollowerListSerializer(serializers.ModelSerializer):
     follower = serializers.CharField(
         source="follower.username", read_only=True
@@ -33,7 +39,7 @@ class FollowerListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Follow
-        fields = ("id", "follower")
+        fields = ("follower",)
 
 
 class FollowingListSerializer(serializers.ModelSerializer):
@@ -43,4 +49,12 @@ class FollowingListSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Follow
-        fields = ("id", "following")
+        fields = ("following",)
+
+
+class PostSerializer(serializers.ModelSerializer):
+    author = serializers.CharField(source="author.username", read_only=True)
+
+    class Meta:
+        model = Post
+        fields = ("id", "name", "author", "created_at", "image", "content")

@@ -45,3 +45,19 @@ class Follow(models.Model):
         Profile, related_name="followers", on_delete=models.CASCADE
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+def post_image_file_path(instance, filename):
+    _, extension = os.path.splitext(filename)
+    filename = f"{slugify(instance.name)}--{uuid.uuid4()}.{extension}"
+    return os.path.join("uploads/posts", filename)
+
+
+class Post(models.Model):
+    author = models.ForeignKey(
+        Profile, on_delete=models.CASCADE, related_name="posts"
+    )
+    name = models.CharField(max_length=255, unique=True)
+    content = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    image = models.ImageField(blank=True, upload_to=post_image_file_path)

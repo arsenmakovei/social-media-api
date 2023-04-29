@@ -1,23 +1,14 @@
 from django.urls import path, include
 from rest_framework import routers
 
-from social_media.views import ProfileViewSet
+from social_media.views import ProfileViewSet, PostViewSet
 
 router = routers.DefaultRouter()
-router.register("profiles", ProfileViewSet)
+router.register("profiles", ProfileViewSet),
+router.register("posts", PostViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),
-    path(
-        "profiles/<int:pk>/follow/",
-        ProfileViewSet.as_view({"post": "follow"}),
-        name="follow-user",
-    ),
-    path(
-        "profiles/<int:pk>/unfollow/",
-        ProfileViewSet.as_view({"post": "unfollow"}),
-        name="unfollow-user",
-    ),
 ]
 
 app_name = "social_media"

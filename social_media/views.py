@@ -6,11 +6,13 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from social_media.models import Profile, Follow
+from social_media.models import Profile, Follow, Post
 from social_media.serializers import (
     ProfileSerializer,
     FollowingListSerializer,
     FollowerListSerializer,
+    PostSerializer,
+    FollowRequestSerializer,
 )
 
 
@@ -54,7 +56,9 @@ class ProfileViewSet(viewsets.ModelViewSet):
     def list(self, request, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
-    @action(detail=True, methods=["POST"])
+    @action(
+        detail=True, methods=["POST"], serializer_class=FollowRequestSerializer
+    )
     def follow(self, request, pk=None):
         follower = self.request.user.profile
         following = self.get_object()
@@ -73,7 +77,9 @@ class ProfileViewSet(viewsets.ModelViewSet):
             {"detail": f"You are now following {following.full_name}."}
         )
 
-    @action(detail=True, methods=["POST"])
+    @action(
+        detail=True, methods=["POST"], serializer_class=FollowRequestSerializer
+    )
     def unfollow(self, request, pk=None):
         follower = self.request.user.profile
         following = self.get_object()
@@ -107,3 +113,65 @@ class ProfileViewSet(viewsets.ModelViewSet):
             profile.following.all(), many=True
         )
         return Response(serializer.data)
+
+    @action(detail=True, methods=["GET"])
+    def posts(self, request, pk=None):
+        profile = self.get_object()
+        posts = Post.objects.filter(author=profile)
+        serializer = PostSerializer(posts, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["GET"])
+    def following_posts(self, request, pk=None):
+        profile = self.get_object()
+        followings = profile.followers.all()
+        posts = Post.objects.filter(author__following__in=followings)
+        serializer = PostSerializer(posts, many=True)
+        return Response(serializer.data)
+
+
+class PostViewSet(viewsets.ModelViewSet):
+    queryset = Post.objects.select_related("author")
+    serializer_class = PostSerializer
+    permission_classes = (IsAuthenticated,)
+
+    def get_queryset(self):
+        queryset = self.queryset
+        name = self.request.query_params.get("name")
+
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+
+        return queryset.distinct()
+
+    def perform_create(self, serializer):
+        serializer.save(author=self.request.user.profile)
+
+    def perform_update(self, serializer):
+        post = self.get_object()
+        if post.author == self.request.user.profile:
+            serializer.save(author=self.request.user.profile)
+        else:
+            raise PermissionDenied(
+                "You do not have permission to update this post."
+            )
+
+    def perform_destroy(self, instance):
+        if instance.author == self.request.user.profile:
+            instance.delete()
+        else:
+            raise PermissionDenied(
+                "You do not have permission to delete this post."
+            )
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "name",
+                type=OpenApiTypes.STR,
+                description="Filter by post name (ex. ?name=the)",
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
